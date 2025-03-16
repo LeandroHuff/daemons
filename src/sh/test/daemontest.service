@@ -1,0 +1,19 @@
+[Unit]
+ Description=Git Monitor Service
+ After=network.target
+ StartLimitIntervalSec=600
+
+[Service]
+ Type=simple
+ ExecStart=/bin/bash /usr/local/src/gitmonitor.sh
+ WorkingDirectory=/$HOME
+ User=$USER
+ Group=$USER
+ Restart=always
+ RestartSec=30
+ StartLimitBurst=5
+ StartLimitIntervalSec=300
+ StartLimitAction=reboot
+
+[Install]
+ WantedBy=multi-user.target
