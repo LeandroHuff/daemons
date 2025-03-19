@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# global variables
 START=$(( $(date +%s%N) / 1000000 ))
 VERSION="3.0.0"
 SCRIPTNAME=$(basename "$0")
@@ -12,6 +13,7 @@ LOGFILE="/tmp/$DAEMONAME.log"
 FILE="git.clone"
 SECS=300
 
+# unset all global vartiables and functions
 function unsetVars
 {
     unset -v START
@@ -42,26 +44,31 @@ function unsetVars
     unset -f main
 }
 
+# send an error message to terminal
 function msgError
 {
     echo -e "\033[91merror:\033[0m $1"
 }
 
+# send a success message to terminal
 function msgSuccess
 {
     echo -e "\033[92msuccess:\033[0m $1"
 }
 
+# send an error message to a log file
 function logError
 {
     echo -e "\033[91merror:\033[0m $1" >> $LOGFILE
 }
 
+# send a success message to a log file
 function logSuccess
 {
     echo -e "\033[92msuccess:\033[0m $1" >> $LOGFILE
 }
 
+# calculate the elapsed runtime and return a formatted message
 function getRuntime
 {
     local NOW
@@ -73,16 +80,19 @@ function getRuntime
     unset -v ELAPSED
 }
 
+# send a new line to log file
 function logNewLine
 {
     echo >> $LOGFILE
 }
 
+# clear all log file
 function logClear
 {
     echo > $LOGFILE
 }
 
+# send a formatted date to log file and return it to caller point
 function logDate
 {
     local DATE
@@ -91,11 +101,13 @@ function logDate
     echo -n "$DATE"
 }
 
+# send a message parameter to log file
 function logIt
 {
     echo -e "$1" >> $LOGFILE
 }
 
+# prepare an interval message and send it to log file
 function logInterval
 {
     local secs=$1
@@ -103,6 +115,7 @@ function logInterval
     echo -e "\033[97minterval:\033[0m Wait for ${secs}s or ${mins}m" >> $LOGFILE
 }
 
+# print help message and information to terminal
 function _help
 {
 cat << EOT
@@ -120,6 +133,10 @@ EOT
     return 0
 }
 
+# prepare the program as a daemon and install it as daemon on systemd
+# daemoname.service will be copyied to /etc/systemd/system/ directory.
+# scriptname.sh will be copyied to /usr/local/bin/ directory.
+# enable, start, and get status of daemon using systemctl system application.
 function _install
 {
     local err=0
@@ -169,6 +186,8 @@ EOT
     return $err
 }
 
+# check git repository status and proceed to update by
+# add, commit and push it to online github repository.
 function _update
 {
     local err=0
@@ -220,20 +239,31 @@ function _update
     return $err
 }
 
+# main application function, it have an infinite looping to
+# check local git repositories and proceed to update it if needed.
 function main
 {
+    # start parse all command line parameters
     while [ -n "$1" ] ; do
         case "$1" in
+        # help parameter (optional)
         -h | --help) _help ; return $? ;;
+        # install parameter (optional)
         -i | --install) _install ; return $? ;;
+        # git user parameter (obligatory)
         -k | --key) shift ; KEY="$1" ;;
+        # git repository file list (optional, default is git.clone)
         -f | --file) shift ; FILE="$1" ;;
-        -t | --interval) shift ; SECS=$1 ;;
-        *) msgError "Unknown parameter $1" ; return 1 ;;
+        # interval parameter (optional, default is 300s)
+        -t | --interval) shift ; SECS=$( [ -n "$1" ] echo $1 || echo 300) ;;
+        # for empty or invalid parameter, print an error message on log.
+        *) logError "Unknown parameter $1" ; return 1 ;;
         esac
+        # next parameter from command line.
         shift
     done
 
+    # local variables
     local STS
     local RES
     local DATE
@@ -241,54 +271,82 @@ function main
     local RUNTIME
     local REPOSITORY
 
+    # clear log file
     logClear
+    # save date on log file
     DATE=$(logDate)
 
+    # start an infinite looping
     while [ true ]
     do
+        # add a new line on log file
         logNewLine
+        # save the runtime value on log file
         RUNTIME=$(getRuntime)
         logIt "$RUNTIME"
+        # change to user directory or log an error.
         cd $USERDIR || logError "Change to $USERDIR/"
+        # update git hub repository from user directory.
         _update "$USER"
+        # change to work directory .../dev/ and update git hub repository.
         cd "$WORKDIR" || logError "Change to $WORKDIR/"
+        # open $FILE and read line by line from it using each one as a repository name.
         while read -e LINE ; do
             # junp empty lines
             [ -z "${LINE}" ] && continue
             # jump commented lines
             [[ ${LINE:0:1} == "#" ]] && continue
-            # directory exist ?
+            # repository/directory exist on file system?
             REPOSITORY="$LINE"
             if [ -d "$REPOSITORY" ] ; then
                 # change to directory
                 cd "$REPOSITORY"
+                # no errors then...
                 if [ $? -eq 0 ] ; then
                     # update git repository
                     _update "$REPOSITORY"
                     # move back for next one
                     cd ..
-                else
+                else # for any error, send a message to log file
                     logError "Unkown repository $REPOSITORY"
                 fi
-            else
+            else # does not exist yet.
+                # save the command line to log file
                 logIt "git clone -v --progress --recursive git@github.com:$KEY/$REPOSITORY.git"
+                # run the command line
                 RES=$(git clone -v --progress --recursive git@github.com:$KEY/$REPOSITORY.git)
+                # any error
                 if [ $? -ne 0 ] ; then
+                    # save a message on log file
                     logError "Clone git repository $REPOSITORY.git"
+                    # save command line result into log file
                     logIt "$RES"
                 fi
             fi
+        # read next line until the end of file $FILE
         done < "$FILE"
+        # save the runtime value into log file.
         RUNTIME=$(getRuntime)
         logIt "$RUNTIME"
+        # save interval into log file
         logInterval $SECS
+        # wait some seconds until the next looping
         sleep $SECS
     done
-    # should never reach from this point.
+    # should never reach this point, because
+    # the shell script is a daemon and has an infinite looping in it.
     return 0
 }
 
+# shell script entry point, call main() function and
+# pass all command line parameter "$@" to it.
+# this function should never come back, because it has an infinite loop inside.
+# its the daemon architecture, run on memory and never stop until kill the application.
 main "$@"
+
+# store returned code
 code=$?
+# unset all glocal variables and functions
 unsetVars
+# exit with code
 exit $code
