@@ -85,13 +85,13 @@ function logDate
 {
     local DATE
     DATE=$(date +%Y-%m-%dT%H:%M:%S)
-    echo "\033[97mdate:\033[0m $DATE" >> $LOGFILE
-    echo "$DATE"
+    echo -e "\033[97mdate:\033[0m $DATE" >> $LOGFILE
+    echo -n "$DATE"
 }
 
 function logIt
 {
-    echo "$1" >> $LOGFILE
+    echo -e "$1" >> $LOGFILE
 }
 
 function logInterval
@@ -171,6 +171,7 @@ function _update
     local err=0
     local STS
     local RES
+    local REPO="$1"
 
     STS=$(git status)
     if [[ $(echo "$STS" | grep -F "up to date"       ) ||    \
@@ -179,7 +180,7 @@ function _update
           ! $(echo "$STS" | grep -F "untracked") && \
           ! $(echo "$STS" | grep -F "deleted"  ) ]]
     then
-        logSuccess "Nothing to do"
+        logSuccess "Nothing to do for repository $REPO"
     else
         RES=$(git add .)
         if [ $? -ne 0 ] ; then
@@ -232,7 +233,7 @@ function main
     local FILE="git.clone"
 
     logClear
-    logDate
+    DATE=$(logDate)
 
     cd "$WORKDIR" || { logError "Change to $WORKDIR/" ; return 1 ; }
 
@@ -246,19 +247,16 @@ function main
             [[ ${LINE:0:1} == "#" ]] && continue
             RUNTIME=$(getRuntime)
             logIt "$RUNTIME"
-            msgSuccess "Line: $LINE"
             if [ -d "$LINE" ] ; then
-                msgSuccess "Dir $LINE exist"
                 cd "$LINE"
                 if [ $? -eq 0 ] ; then
-                    _update
+                    _update "$LINE"
                     cd ..
                 else
                     logError "Unkown repository $LINE"
                 fi
             else
-                msgSuccess "Dir $LINE not exist"
-                msgSuccess "git clone -v --progress --recursive git@github.com:$KEY/$LINE.git"
+                logIt "git clone -v --progress --recursive git@github.com:$KEY/$LINE.git"
                 RES=$(git clone -v --progress --recursive git@github.com:$KEY/$LINE.git)
                 if [ $? -ne 0 ] ; then
                     logError "Clone git repository $LINE.git"
