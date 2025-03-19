@@ -145,21 +145,25 @@ Step 4: Starting Our Daemon Service Let us now look at the commands which we wil
 
 sudo systemctl daemon-reload
 
-# Uncomment the below line to start your service at the time of system boot
+Uncomment the below line to start your service at the time of system boot
 
+```
 # sudo systemctl enable <name-of-service>.service
-
 sudo systemctl start <name-of-service>
+```
 
-# OR
+OR
 
+```
 # sudo service <name-of-service> start
-
 sudo systemctl status <name-of-service>
+```
 
-# OR
+OR
 
+```
 # sudo service <name-of-service> status
+```
 
 Conclusion, we have looked how to make custom daemons and check their status as well. Also, we observed that it is fairly easy to make these daemons and use them. We hope that everyone is now comfortable enough to make daemons on their own.
 
@@ -193,7 +197,7 @@ Sometimes we need to implement a shell script as a daemon service, from here we'
 
 Systemd is a suite of system management daemons, libraries, and utilities designed to centralize the management of various aspects of a Linux OS.
 
-It provides a standard process for controlling what programs run when a Linux OS boots up and during its operation.
+It provides a standard process for controlling what programs run when a Linux OS boots up and during its ope'ration.
 
 Systemd service file is a plain text file with the ‘.service’ extension contains configuration directives for a service.
 
